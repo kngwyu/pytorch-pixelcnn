@@ -1,0 +1,14 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+click = ">=6.0"
+numpy = ">=1.15"
+torch = ">=1.0"
+torchvision = ">=0.2.1"
+
+
+[dev-packages]
+pytest = "==3.10.1"
