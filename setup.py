@@ -13,7 +13,7 @@ DESCRIPTION = 'Algorithm and utilities for deep reinforcement learning'
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with io.open(os.path.join(here, 'rainy/__init__.py'), 'rt', encoding='utf8') as f:
+with io.open(os.path.join(here, 'pixelcnn/__init__.py'), 'rt', encoding='utf8') as f:
     VERSION = re.search(r"__version__ = \'(.*?)\'", f.read()).group(1)
 
 try:
