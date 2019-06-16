@@ -3,11 +3,7 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 from torch.nn.utils import weight_norm
 from torch._jit_internal import weak_module, weak_script_method
-from typing import Any, Callable, Optional, Tuple
-
-
-def identity(x: Any) -> Any:
-    return x
+from typing import Callable, Optional, Tuple
 
 
 @torch.jit.script
@@ -112,21 +108,21 @@ class GatedResNet(nn.Module):
             in_channel: int,
             conv: Callable[[int, int], nn.Module],
             nonlinearity: nn.Module = ConcatELU,
-            skip_connection: int = 0,
+            aux_enlargement: int = 0,
     ) -> None:
         super().__init__()
         self.conv1 = conv(in_channel * 2, in_channel)
-        if skip_connection == 0:
-            self.skip_op = identity
+        if aux_enlargement == 0:
+            self.skip_op = None
         else:
-            self.skip_op = Conv1x1(2 * skip_connection * in_channel, in_channel)
+            self.skip_op = Conv1x1(2 * aux_enlargement * in_channel, in_channel)
         self.nonlinearity = nonlinearity
         self.dropout = nn.Dropout2d(0.5)
         self.conv2 = conv(in_channel * 2, in_channel * 2)
 
     def forward(self, x_orig: Tensor, aux: Optional[Tensor] = None) -> Tensor:
         x = self.conv1(self.nonlinearity(x_orig))
-        if aux is not None:
+        if aux is not None and self.skip_op is not None:
             x += self.skip_op(self.nonlinearity(x))
         x = self.nonlinearity(x)
         x = self.dropout(x)
