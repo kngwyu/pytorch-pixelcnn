@@ -43,15 +43,14 @@ class DownLayer(nn.Module):
             nonlinearity: Callable[[], nn.Module] = ConcatELU,
     ) -> None:
         super().__init__()
-        self.down_pass = nn.ModuleList([
+        self.up_pass = nn.ModuleList([
             GatedResNet(
                 in_channel,
                 DownShiftedDeconv2d,
                 nonlinearity=nonlinearity(),
-            )
-            for _ in range(num_layers)
+            ) for _ in range(num_layers)
         ])
-        self.down_right_pass = nn.ModuleList([
+        self.up_left_pass = nn.ModuleList([
             GatedResNet(
                 in_channel,
                 partial(DownShiftedDeconv2d, kernel=(2, 2), right_shift=True),
@@ -60,17 +59,17 @@ class DownLayer(nn.Module):
             ) for _ in range(num_layers)
         ])
 
-        def forward(
-            self,
-            ux: Tensor,
-            ulx: Tensor,
-            ux_skipped: List[Tensor],
-            ulx_skipped: List[Tensor],
-        ) -> Tuple[Tensor, Tensor]:
-            for up, up_left in zip(self.up_pass, self.up_left_pass):
-                ux = up(ux, aux=ux_skipped.pop())
-                ulx = up_left(ux, aux=torch.cat(ux, ulx_skipped.pop(), dim=1))
-            return ux, ulx
+    def forward(
+        self,
+        ux: Tensor,
+        ulx: Tensor,
+        ux_skipped: List[Tensor],
+        ulx_skipped: List[Tensor],
+    ) -> Tuple[Tensor, Tensor]:
+        for up, up_left in zip(self.up_pass, self.up_left_pass):
+            ux = up(ux, aux=ux_skipped.pop())
+            ulx = up_left(ulx, aux=torch.cat((ux, ulx_skipped.pop()), dim=1))
+        return ux, ulx
 
 
 class PixelCNNpp(nn.Module):
@@ -80,7 +79,7 @@ class PixelCNNpp(nn.Module):
             num_groups: int = 3,
             num_layers: int = 5,
             hidden_channel: int = 80,
-            downsize_stride: Tuple[int, int] = (2, 2),
+            downsize_stride: int = 2,
             num_logistic_mix: int = 10,
             nonlinearity: Callable[[], nn.Module] = ConcatELU,
     ) -> None:
@@ -108,7 +107,7 @@ class PixelCNNpp(nn.Module):
         ])
 
         # DOWN PASS
-        downpass_layers = [num_layers] + [num_layers - 1] * (num_groups - 1)
+        downpass_layers = [num_layers] + [num_layers + 1] * (num_groups - 1)
         self.down_pass = nn.ModuleList([
             DownLayer(resnet_layer, hidden_channel, nonlinearity)
             for resnet_layer in downpass_layers
@@ -121,10 +120,9 @@ class PixelCNNpp(nn.Module):
             DownShiftedDeconv2d(*hidden_channels, stride=downsize_stride, right_shift=True)
             for _ in range(num_groups - 1)
         ])
-        out_enlargement = 3 if input_channel == 1 else 10
         self.out = nn.Sequential(
             nn.ELU(inplace=True),
-            Conv1x1(hidden_channel, out_enlargement * num_logistic_mix)
+            Conv1x1(hidden_channel, num_logistic_mix * 10)
         )
 
     def forward(self, x: Tensor) -> Tensor:

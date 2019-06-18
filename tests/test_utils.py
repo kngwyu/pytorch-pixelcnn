@@ -17,7 +17,7 @@ def test_rightshift():
 def test_downcut():
     x = torch.randn(2, 3, 4, 5)
     dc = down_cut(x, 2, 2)
-    assert tuple(dc.shape) == (2, 3, 3, 4)
+    assert tuple(dc.shape) == (2, 3, 3, 5)
 
 
 def test_rightcut():

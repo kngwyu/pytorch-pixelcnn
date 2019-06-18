@@ -19,7 +19,7 @@ def right_shift(x: Tensor) -> Tensor:
 @torch.jit.script
 def down_cut(x: Tensor, hk: int, wk: int) -> Tensor:
     _, _, h, w = x.shape
-    return x[:, :, :h - hk + 1, (wk - 1) // 1:w - (wk - 1) // 2]
+    return x[:, :, :h - hk + 1, (wk - 1) // 2:w - (wk - 1) // 2]
 
 
 @torch.jit.script

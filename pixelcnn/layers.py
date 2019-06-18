@@ -17,8 +17,7 @@ class ConcatELU(nn.Module):
         return F.elu(torch.cat((x, -x), dim=1), self.alpha, inplace=True)
 
     def extra_repr(self):
-        inplace_str = ', inplace' if self.inplace else ''
-        return 'alpha={}{}'.format(self.alpha, inplace_str)
+        return 'alpha={}'.format(self.alpha)
 
 
 class DownShiftedConv2d(nn.Module):
@@ -27,13 +26,13 @@ class DownShiftedConv2d(nn.Module):
             in_channel: int,
             out_channel: int,
             kernel: Tuple[int, int] = (2, 3),
-            stride: Tuple[int, int] = (1, 1),
+            stride: int = 1,
             right_shift: bool = False,
     ) -> None:
         super().__init__()
         kh, kw = kernel
         # pad: (Left, Right, Top, Bottom)
-        pad = (kh - 1, 0, kw - 1, 0) if right_shift else ((kw - 1) // 2, (kw - 1) // 2, kh - 1, 0)
+        pad = (kw - 1, 0, kh - 1, 0) if right_shift else ((kw - 1) // 2, (kw - 1) // 2, kh - 1, 0)
         self.pad = nn.ZeroPad2d(pad)
         self.conv = weight_norm(nn.Conv2d(in_channel, out_channel, kernel, stride))
 
@@ -46,12 +45,16 @@ class DownShiftedDeconv2d(nn.Module):
             self,
             in_channel: int,
             out_channel: int,
-            kernel: Tuple[int, int] = (2, 2),
-            stride: Tuple[int, int] = (1, 1),
+            kernel: Tuple[int, int] = (2, 3),
+            stride: int = 1,
             right_shift: bool = False,
     ) -> None:
         super().__init__()
-        self.deconv = weight_norm(nn.ConvTranspose2d(in_channel, out_channel, kernel, stride))
+        if stride != 1 and stride != 2:
+            raise ValueError('Only 1 or 2 is allowed as stride size for DownShiftedDeconv2d')
+        pad = 0 if stride == 1 else 1
+        deconv = nn.ConvTranspose2d(in_channel, out_channel, kernel, stride, output_padding=pad)
+        self.deconv = weight_norm(deconv)
         self.kernel = kernel
         self.scaler = right_cut if right_shift else down_cut
 

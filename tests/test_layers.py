@@ -15,6 +15,7 @@ def test_concat_elu():
     (DownShiftedConv2d(3, 4), (5, 4, 6, 6)),
     (DownShiftedConv2d(3, 4, kernel=(2, 2), right_shift=True), (5, 4, 6, 6)),
     (DownShiftedDeconv2d(3, 4), (5, 4, 6, 6)),
+    (DownShiftedDeconv2d(3, 3, stride=2), (5, 3, 12, 12)),
     (DownShiftedDeconv2d(3, 4, right_shift=True), (5, 4, 6, 6)),
 ])
 def test_conv(net, out_shape):
