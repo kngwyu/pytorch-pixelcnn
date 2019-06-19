@@ -37,7 +37,9 @@ class DownShiftedConv2d(nn.Module):
         self.conv = weight_norm(nn.Conv2d(in_channel, out_channel, kernel, stride))
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.conv(self.pad(x))
+        x = self.pad(x)
+        x = self.conv(x)
+        return x
 
 
 class DownShiftedDeconv2d(nn.Module):

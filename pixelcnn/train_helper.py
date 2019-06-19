@@ -3,7 +3,7 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from typing import Callable, List, Tuple
+from typing import Callable, List
 from .loss import discretized_mix_logistic_loss
 
 
@@ -35,9 +35,10 @@ def train(
         loss_fn: LossFn,
         optimizer: Optimizer,
         num_epochs: int,
-        lr_decay: Callable[[Optimizer], None],
+        lr_decay: callable,
 ) -> List[float]:
     print('Train started')
+    model.train(True)
     res = []
     for epoch in range(num_epochs):
         epoch_loss = []
@@ -49,7 +50,7 @@ def train(
             loss.backward()
             optimizer.step()
             epoch_loss.append(float(loss.item()))
-        lr_decay(optimizer)
+        lr_decay()
         el = np.array(epoch_loss)
         mean = el.mean()
         print(

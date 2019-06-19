@@ -9,3 +9,4 @@ log.txt
 **/build/
 **/*.egg-info/
 **/.mypy_cache/
+**/data/

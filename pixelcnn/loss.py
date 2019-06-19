@@ -16,7 +16,7 @@ def split_output(output: Tensor, n_mix: int) -> Tuple[Tensor, Tensor, Tensor]:
 def siga_minus_sigb(a: Tensor, b: Tensor) -> Tensor:
     exp_a = torch.exp(-a)
     exp_b = torch.exp(-b)
-    return exp_b.sub(exp_a).div_(exp_a.add_(1.0).mul_(exp_b.add(1.0)))
+    return exp_b.sub(exp_a).div_(exp_a.add(1.0).mul_(exp_b.add(1.0)))
 
 
 @torch._jit_internal.weak_script
@@ -25,7 +25,7 @@ def log_prob_from_logits_(logits: Tensor) -> Tensor:
     return logits.sub(m).sub_(torch.exp(logits - m).sum(-1, keepdim=True).log_())
 
 
-@torch.jit.script
+# @torch.jit.script
 def _dmixloss_impl(
         target: Tensor,
         centered_t: Tensor,
@@ -38,9 +38,9 @@ def _dmixloss_impl(
     min_in = inv_stdv * (centered_t - 1.0 / color_depth)
     log_cdf_plus = plus_in - F.softplus(plus_in)
     log_one_minus_cdf_min = -F.softplus(min_in)
-    cdf_delta = siga_minus_sigb(plus_in, min_in)
-    mid_in = inv_stdv.mul_(centered_t)
-    log_pdf_mid = mid_in.sub_(log_scales.add_(F.softplus(mid_in).mul_(2.0)))
+    cdf_delta = plus_in.sigmoid() - min_in.sigmoid()
+    mid_in = inv_stdv * centered_t
+    log_pdf_mid = mid_in - log_scales.add(F.softplus(mid_in).mul(2.0))
     log_probs = torch.where(
         target < -0.999,
         log_cdf_plus,
@@ -49,7 +49,7 @@ def _dmixloss_impl(
             log_one_minus_cdf_min,
             torch.where(
                 cdf_delta > 1e-5,
-                cdf_delta.clamp(min=1e-12).log(),
+                cdf_delta.log(),
                 log_pdf_mid - torch.tensor(color_depth / 2., device=log_pdf_mid.device).log()
             )
         )

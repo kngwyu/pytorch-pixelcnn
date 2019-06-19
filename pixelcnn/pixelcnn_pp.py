@@ -46,14 +46,15 @@ class DownLayer(nn.Module):
         self.up_pass = nn.ModuleList([
             GatedResNet(
                 in_channel,
-                DownShiftedDeconv2d,
+                DownShiftedConv2d,
                 nonlinearity=nonlinearity(),
+                aux_enlargement=1,
             ) for _ in range(num_layers)
         ])
         self.up_left_pass = nn.ModuleList([
             GatedResNet(
                 in_channel,
-                partial(DownShiftedDeconv2d, kernel=(2, 2), right_shift=True),
+                partial(DownShiftedConv2d, kernel=(2, 2), right_shift=True),
                 nonlinearity=nonlinearity(),
                 aux_enlargement=2,
             ) for _ in range(num_layers)
@@ -81,6 +82,7 @@ class PixelCNNpp(nn.Module):
             hidden_channel: int = 80,
             downsize_stride: int = 2,
             num_logistic_mix: int = 10,
+            device: str = 'cuda:0' if torch.cuda.is_available() else 'cpu',
             nonlinearity: Callable[[], nn.Module] = ConcatELU,
     ) -> None:
         super().__init__()
@@ -102,8 +104,12 @@ class PixelCNNpp(nn.Module):
             for _ in range(num_groups - 1)
         ])
         self.downsize_ul = nn.ModuleList([
-            DownShiftedConv2d(*hidden_channels, stride=downsize_stride, right_shift=True)
-            for _ in range(num_groups - 1)
+            DownShiftedConv2d(
+                *hidden_channels,
+                kernel=(2, 2),
+                stride=downsize_stride,
+                right_shift=True
+            ) for _ in range(num_groups - 1)
         ])
 
         # DOWN PASS
@@ -117,17 +123,23 @@ class PixelCNNpp(nn.Module):
             for _ in range(num_groups - 1)
         ])
         self.upsize_ul = nn.ModuleList([
-            DownShiftedDeconv2d(*hidden_channels, stride=downsize_stride, right_shift=True)
+            DownShiftedDeconv2d(
+                *hidden_channels,
+                kernel=(2, 2),
+                stride=downsize_stride,
+                right_shift=True
+            )
             for _ in range(num_groups - 1)
         ])
         self.out = nn.Sequential(
             nn.ELU(inplace=True),
             Conv1x1(hidden_channel, num_logistic_mix * 10)
         )
+        self.device = torch.device(device)
+        self.to(self.device)
 
     def forward(self, x: Tensor) -> Tensor:
         x = torch.cat((x, torch.ones_like(x[:, :1, ...])), dim=1)
-
         # UP PASS
         ux_cache = [down_shift(self.init_u(x))]
         ulx_cache = [down_shift(self.init_ul[0](x)) + right_shift(self.init_ul[1](x))]
@@ -146,3 +158,18 @@ class PixelCNNpp(nn.Module):
         _, ulx = down(ux, ulx, ux_cache, ulx_cache)
         assert len(ux_cache) == 0 and len(ulx_cache) == 0
         return self.out(ulx)
+
+
+if __name__ == '__main__':
+    ''' testing loss compatibility '''
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+    x = torch.cuda.FloatTensor(32, 3, 32, 32).uniform_(-1., 1.)
+    model = PixelCNNpp(3, num_layers=3)
+    for name, param in model.named_parameters():
+        if 'weight' in name:
+            nn.init.constant_(param, 0.05)
+        if 'bias' in name:
+            nn.init.constant_(param, 1.0)
+    out = model(x)
+    print('out_mean: %s' % out.mean().item())

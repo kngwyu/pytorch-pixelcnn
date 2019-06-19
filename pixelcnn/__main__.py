@@ -1,46 +1,67 @@
 import click
-from typing import Optional
+import torch
+from torch import optim
 from .pixelcnn_pp import PixelCNNpp
-from .train_helper import prepare_data, train
+from . import initialize
+from . import train_helper
+
+
+def kwargs_to_click_opt(f):
+    annon = f.__annotations__
+    for name, value in zip(annon.keys(), f.__defaults__):
+        click.option('--' + name.replace('_', '-'), type=annon[name], default=value)(f)
+    return f
 
 
 @click.group()
-@click.option('--num-gpu', type=int, default=1)
-@click.pass_context
-def main_app(ctx: dict, num_gpu: int) -> None:
-    ctx['gpu'] = num_gpu
-
-
-@main_app.command()
-@click.option('--log-dir', type=str, default='./log')
-@click.option('--data-dir', type=str, default='./data')
-@click.option('--dataset', type=str, default='cifar')
-@click.option('--lr', type=float, default=0.001)
-@click.option('--lr-decay', type=float, default=None)
-@click.option('--batch-size', type=int, default=16)
-@click.option('--epochs', type=int, default=5000)
-def train_app(
-        ctx: dict,
-        log_dir: str,
-        data_dir: str,
-        dataset: str,
-        lr: float,
-        lr_decay: Optional[float],
-        batch_size: int,
-        num_groups: int,
-        num_layers: int,
-        hidden_channel: int,
-        downsize_stride: int,
-        num_logistic_mix: int,
-) -> None:
-    data = prepare_data(dataset, data_dir, batch_size)
+def cli() -> None:
     pass
 
 
-@main_app.command()
-def test_app() -> None:
+@cli.command()
+@kwargs_to_click_opt
+def train(
+        log_dir: str = './log',
+        data_dir: str = './data',
+        dataset: str = 'cifar',
+        lr: float = 0.001,
+        lr_decay: float = 0.999995,
+        batch_size: int = 16,
+        epochs: int = 5000,
+        num_groups: int = 3,
+        num_layers: int = 5,
+        hidden_channel: int = 80,
+        downsize_stride: int = 2,
+        num_logistic_mix: int = 10,
+) -> None:
+    data = train_helper.prepare_data(dataset, data_dir, batch_size)
+    input_channel = data.dataset.data[0].shape[2]
+    model = PixelCNNpp(
+        input_channel,
+        num_groups,
+        num_layers,
+        hidden_channel,
+        downsize_stride,
+        num_logistic_mix,
+    )
+    initialize.orthogonal()(model)
+    adam = optim.Adam(model.parameters(), lr=lr,)
+    scheduler = optim.lr_scheduler.StepLR(adam, step_size=1, gamma=lr_decay)
+    with torch.autograd.set_detect_anomaly(True):
+        train_helper.train(
+        model,
+        data,
+        train_helper.loss_fn(dataset),
+        adam,
+        epochs,
+        lambda: scheduler.step(),
+    )
+
+
+@cli.command()
+def test() -> None:
     pass
 
 
 if __name__ == '__main__':
-    pass
+    cli()
