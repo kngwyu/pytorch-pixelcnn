@@ -1,4 +1,6 @@
 import numpy as np
+from pathlib import Path
+import torch
 from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
@@ -29,17 +31,30 @@ def loss_fn(dataset: str) -> LossFn:
         raise ValueError('dataset {} is not supported'.format(dataset))
 
 
+def save_model(model: nn.Module, optimizer: Optimizer, log_file: str) -> None:
+    save_dict = {
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict(),
+    }
+    torch.save(save_dict, log_file)
+
+
 def train(
         model: nn.Module,
         train_data: DataLoader,
         loss_fn: LossFn,
         optimizer: Optimizer,
         num_epochs: int,
+        save_freq: int,
+        log_dir: str,
         lr_decay: callable,
-) -> List[float]:
+) -> None:
     print('Train started')
     model.train(True)
-    res = []
+    log_dir = Path(log_dir)
+    if not log_dir.exists():
+        log_dir.mkdir()
+    loss_list = []
     for epoch in range(num_epochs):
         epoch_loss = []
         for img, _ in train_data:
@@ -53,9 +68,11 @@ def train(
         lr_decay()
         el = np.array(epoch_loss)
         mean = el.mean()
+        if epoch > 0 and epoch % save_freq == 0:
+            save_model(model, optimizer, log_dir.joinpath('model.pth.{}'.format(epoch)))
         print(
             'epoch: {} loss_mean: {} loss_max: {} loss_min: {}'
             .format(epoch, mean, el.max(), el.min())
         )
-        res.append(float(mean))
-    return res
+        loss_list.append(float(mean))
+    np.save(log_dir.joinpath('loss.npy'), np.array(res))

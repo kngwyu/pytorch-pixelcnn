@@ -49,7 +49,7 @@ def _dmixloss_impl(
             log_one_minus_cdf_min,
             torch.where(
                 cdf_delta > 1e-5,
-                cdf_delta.log(),
+                cdf_delta.clamp(min=1e-12).log(),
                 log_pdf_mid - torch.tensor(color_depth / 2., device=log_pdf_mid.device).log()
             )
         )

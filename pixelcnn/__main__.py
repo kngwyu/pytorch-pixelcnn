@@ -33,6 +33,7 @@ def train(
         hidden_channel: int = 80,
         downsize_stride: int = 2,
         num_logistic_mix: int = 10,
+        save_freq: int = 500,
 ) -> None:
     data = train_helper.prepare_data(dataset, data_dir, batch_size)
     input_channel = data.dataset.data[0].shape[2]
@@ -49,13 +50,15 @@ def train(
     scheduler = optim.lr_scheduler.StepLR(adam, step_size=1, gamma=lr_decay)
     with torch.autograd.set_detect_anomaly(True):
         train_helper.train(
-        model,
-        data,
-        train_helper.loss_fn(dataset),
-        adam,
-        epochs,
-        lambda: scheduler.step(),
-    )
+            model,
+            data,
+            train_helper.loss_fn(dataset),
+            adam,
+            epochs,
+            save_freq,
+            log_dir,
+            lambda: scheduler.step(),
+        )
 
 
 @cli.command()
