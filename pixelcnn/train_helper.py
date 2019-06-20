@@ -74,7 +74,7 @@ def train(
             save_model(model, optimizer, log_dir.joinpath('model.pth.{}'.format(epoch)))
         print(
             'epoch: {} loss_mean: {} loss_max: {} loss_min: {}, elapsed: {}'
-            .format(epoch, mean, el.max(), el.min(), (start_time - datetime.now()).total_seconds)
+            .format(epoch, mean, el.max(), el.min(), (datetime.now() - start_time).total_seconds())
         )
         loss_list.append(float(mean))
     np.save(log_dir.joinpath('loss.npy'), np.array(loss_list))
