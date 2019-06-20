@@ -25,7 +25,7 @@ def log_prob_from_logits_(logits: Tensor) -> Tensor:
     return logits.sub(m).sub_(torch.exp(logits - m).sum(-1, keepdim=True).log_())
 
 
-# @torch.jit.script
+@torch.jit.script
 def _dmixloss_impl(
         target: Tensor,
         centered_t: Tensor,

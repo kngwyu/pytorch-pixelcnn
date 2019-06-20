@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 from pathlib import Path
 import torch
@@ -5,7 +6,7 @@ from torch import nn, Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from typing import Callable, List
+from typing import Callable
 from .loss import discretized_mix_logistic_loss
 
 
@@ -55,6 +56,7 @@ def train(
     if not log_dir.exists():
         log_dir.mkdir()
     loss_list = []
+    start_time = datetime.now()
     for epoch in range(num_epochs):
         epoch_loss = []
         for img, _ in train_data:
@@ -71,8 +73,8 @@ def train(
         if epoch > 0 and epoch % save_freq == 0:
             save_model(model, optimizer, log_dir.joinpath('model.pth.{}'.format(epoch)))
         print(
-            'epoch: {} loss_mean: {} loss_max: {} loss_min: {}'
-            .format(epoch, mean, el.max(), el.min())
+            'epoch: {} loss_mean: {} loss_max: {} loss_min: {}, elapsed: {}'
+            .format(epoch, mean, el.max(), el.min(), (start_time - datetime.now()).total_seconds)
         )
         loss_list.append(float(mean))
-    np.save(log_dir.joinpath('loss.npy'), np.array(res))
+    np.save(log_dir.joinpath('loss.npy'), np.array(loss_list))

@@ -1,5 +1,4 @@
 import click
-import torch
 from torch import optim
 from .pixelcnn_pp import PixelCNNpp
 from . import initialize
@@ -27,13 +26,13 @@ def train(
         lr: float = 0.001,
         lr_decay: float = 0.999995,
         batch_size: int = 16,
-        epochs: int = 5000,
+        epochs: int = 500,
         num_groups: int = 3,
         num_layers: int = 5,
         hidden_channel: int = 80,
         downsize_stride: int = 2,
         num_logistic_mix: int = 10,
-        save_freq: int = 500,
+        save_freq: int = 100,
 ) -> None:
     data = train_helper.prepare_data(dataset, data_dir, batch_size)
     input_channel = data.dataset.data[0].shape[2]
@@ -48,17 +47,16 @@ def train(
     initialize.orthogonal()(model)
     adam = optim.Adam(model.parameters(), lr=lr,)
     scheduler = optim.lr_scheduler.StepLR(adam, step_size=1, gamma=lr_decay)
-    with torch.autograd.set_detect_anomaly(True):
-        train_helper.train(
-            model,
-            data,
-            train_helper.loss_fn(dataset),
-            adam,
-            epochs,
-            save_freq,
-            log_dir,
-            lambda: scheduler.step(),
-        )
+    train_helper.train(
+        model,
+        data,
+        train_helper.loss_fn(dataset),
+        adam,
+        epochs,
+        save_freq,
+        log_dir,
+        lambda: scheduler.step(),
+    )
 
 
 @cli.command()
