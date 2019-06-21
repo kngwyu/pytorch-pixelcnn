@@ -3,6 +3,7 @@ from torch import optim
 from .pixelcnn_pp import PixelCNNpp
 from . import initialize
 from . import train_helper
+from typing import Union
 
 
 def kwargs_to_click_opt(f):
