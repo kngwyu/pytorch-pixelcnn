@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 from torch import nn, Tensor
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 from typing import Callable
 from .loss import discretized_mix_logistic_loss
@@ -13,15 +13,19 @@ from .loss import discretized_mix_logistic_loss
 LossFn = Callable[[Tensor, Tensor], Tensor]
 
 
-def prepare_data(dataset: str, data_dir: str, batch_size: int, train: bool = True) -> DataLoader:
+def load_dataset(dataset: str, data_dir: str) -> Dataset:
     trans = transforms.Compose([
         transforms.ToTensor(),
         lambda x: (x - 0.5) * 2.0
     ])
     if dataset == 'cifar':
-        data = datasets.CIFAR10(data_dir, train=train, download=True, transform=trans)
+        return datasets.CIFAR10(data_dir, train=train, download=True, transform=trans)
     else:
         raise ValueError('dataset {} is not supported'.format(dataset))
+
+
+def prepare_data(dataset: str, data_dir: str, batch_size: int, train: bool = True) -> DataLoader:
+    data = load_dataset(dataset, data_dir)
     return DataLoader(data, batch_size=batch_size, shuffle=True)
 
 

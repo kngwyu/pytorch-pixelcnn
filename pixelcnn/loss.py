@@ -4,7 +4,6 @@ from torch import Tensor
 from typing import Tuple
 
 
-@torch._jit_internal.weak_script
 def split_output(output: Tensor, n_mix: int) -> Tuple[Tensor, Tensor, Tensor]:
     means = output[:, :, :, :, :n_mix]
     log_scales = torch.clamp(output[:, :, :, :, n_mix: n_mix * 2], min=-7.0)
@@ -12,7 +11,6 @@ def split_output(output: Tensor, n_mix: int) -> Tuple[Tensor, Tensor, Tensor]:
     return means, log_scales, coeffs
 
 
-@torch._jit_internal.weak_script
 def log_prob_from_logits_(logits: Tensor) -> Tensor:
     m = logits.max(dim=-1, keepdim=True)[0]
     return logits.sub(m).sub_(torch.exp(logits - m).sum(-1, keepdim=True).log_())

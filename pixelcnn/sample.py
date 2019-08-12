@@ -1,6 +1,6 @@
 import torch
 from torch.nn import functional as F
-from torch import Tensor
+from torch import nn, Tensor
 
 
 @torch.jit.script
@@ -21,3 +21,14 @@ def from_discretized_mix_logistic(logits: Tensor, n_mix: int, out_channel: int =
     x1 = x[:, :, :, 1].add_(coeffs[:, :, :, 0] * x0).clamp_(-1.0, 1.0)
     x2 = x[:, :, :, 2].add_(coeffs[:, :, :, 1] * x0 + coeffs[:, :, :, 2] * x1).clamp_(-1.0, 1.0)
     return torch.cat((x0.unsqueeze(1), x1.unsqueeze(1), x2.unsqueeze(1)), dim=1)
+
+
+def sample_image(model: nn.Module, batch_size: int, c: int, h: int, w: int, n_mix: int) -> Tensor:
+    model.train(False)
+    data = torch.zeros(batch_size, c, h, w, device=model.device)
+    for i in range(h):
+        for j in range(w):
+            out = model(data)
+            out_sample = from_discretized_mix_logistic(out, n_mix, c)
+            data[:, :, i, j] = out_sample.data[:, :, i, j]
+    return data

@@ -1,9 +1,11 @@
 import click
+import torch
 from torch import optim
+from torchvision.utils import save_image
 from .pixelcnn_pp import PixelCNNpp
 from . import initialize
+from .sample import sample_image
 from . import train_helper
-from typing import Union
 
 
 def kwargs_to_click_opt(f):
@@ -61,8 +63,34 @@ def train(
 
 
 @cli.command()
-def test() -> None:
-    pass
+@kwargs_to_click_opt
+def sample(
+        path: str = './log/model.pth',
+        data_dir: str = './data',
+        dataset: str = 'cifar',
+        input_channel: int = 3,
+        num_groups: int = 3,
+        num_layers: int = 5,
+        hidden_channel: int = 80,
+        downsize_stride: int = 2,
+        num_logistic_mix: int = 10,
+        sample_batch_size: int = 25,
+) -> None:
+    data = train_helper.load_dataset(dataset, data_dir)
+    shape = data.data[0].shape
+    model = PixelCNNpp(
+        shape[2],
+        num_groups,
+        num_layers,
+        hidden_channel,
+        downsize_stride,
+        num_logistic_mix,
+    )
+    data = torch.load(path)
+    model.load_state_dict(data['model'])
+    out = sample_image(model, sample_batch_size, shape[2], shape[0], shape[1], num_logistic_mix)
+    out = out * 0.5 + 0.5
+    save_image(out, 'image.png', nrow=5, padding=0)
 
 
 if __name__ == '__main__':
